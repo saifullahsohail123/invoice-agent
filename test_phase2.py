@@ -33,7 +33,9 @@ def test_pipeline():
         state = extractor_node(state)
         print("Extractor Status:", state.status)
         if state.extracted:
-            print("Overall Confidence:", state.extracted.overall_confidence)
+            print(f"Overall Confidence: {state.extracted.overall_confidence:.2%}")
+            print("\n--- Extracted Data ---")
+            print(state.extracted.model_dump_json(indent=2))
 
 if __name__ == "__main__":
     test_pipeline()
