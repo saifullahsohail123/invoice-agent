@@ -39,7 +39,7 @@ class ExtractedInvoice(BaseModel):
 class InvoiceState(BaseModel):
     # Input
     source_path: str                               # Original file path
-    source_type: Literal["pdf", "image"]           # Detected type
+    source_type: Optional[Literal["pdf", "image"]] = None           # Detected type
     images: List[Any] = Field(default_factory=list)  # PIL Images
     current_page: int = 0                          # For multi-page PDFs
 
