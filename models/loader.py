@@ -2,7 +2,7 @@
 # Singleton pattern: model loads once and stays in memory.
 
 import torch
-from transformers import Qwen2VLForConditionalGeneration, AutoProcessor
+from transformers import Qwen2_5_VLForConditionalGeneration, AutoProcessor
 from config import MODEL_ID, MODEL_DTYPE
 
 _model = None
@@ -18,7 +18,7 @@ def get_model_and_processor():
 
     print(f"Loading model {MODEL_ID}... (first run downloads ~14GB)")
     _processor = AutoProcessor.from_pretrained(MODEL_ID)
-    _model = Qwen2VLForConditionalGeneration.from_pretrained(
+    _model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
         MODEL_ID,
         torch_dtype=dtype,
         device_map="auto",         # Automatically uses your GPU
