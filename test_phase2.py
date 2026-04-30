@@ -9,10 +9,10 @@ from PIL import Image
 # But we can test the pipeline stages
 
 def test_pipeline():
-    os.makedirs("tests/sample_invoices", exist_ok=True)
-    img = Image.new('RGB', (800, 600), color='white')
-    test_path = "tests/sample_invoices/dummy2.jpg"
-    img.save(test_path)
+    # os.makedirs("tests/sample_invoices", exist_ok=True)
+    # img = Image.new('RGB', (800, 600), color='white')
+    test_path = "tests/sample_invoices/sample.png"
+    # img.save(test_path)
 
     # 1. Input Handler Node
     state = InvoiceState(source_path=test_path)
