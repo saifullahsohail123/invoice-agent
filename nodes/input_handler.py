@@ -86,9 +86,30 @@ def load_image(path: str) -> list:
 def input_handler_node(state: InvoiceState) -> InvoiceState:
     """
     LangGraph node: loads the source file into a list of PIL Images.
+    Calculates file hash to prevent duplicate processing.
     Updates state.images and state.source_type.
     """
+    import hashlib
+    import os
+    from db.database import check_file_hash_exists, init_db
+
+    # Ensure DB is ready
+    init_db()
+
     try:
+        # File Hashing (Stage 1 Uniqueness Check)
+        with open(state.source_path, "rb") as f:
+            file_bytes = f.read()
+            file_hash = hashlib.sha256(file_bytes).hexdigest()
+            
+        if check_file_hash_exists(file_hash):
+            state.status = "duplicate_file"
+            state.error_message = f"File {os.path.basename(state.source_path)} has already been processed."
+            return state
+
+        # Also store the hash locally in state so storage_node can save it later
+        state.file_hash = file_hash
+
         source_type = detect_file_type(state.source_path)
         state.source_type = source_type
 

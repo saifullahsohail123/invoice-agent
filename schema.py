@@ -46,6 +46,7 @@ class InvoiceState(BaseModel):
     source_type: Optional[Literal["pdf", "image"]] = None           # Detected type
     images: List[str] = Field(default_factory=list)  # Base64 encoded JPEG strings
     current_page: int = 0                          # For multi-page PDFs
+    file_hash: Optional[str] = None                # SHA-256 for duplicate checks
 
     # Classification
     is_invoice: Optional[bool] = None
