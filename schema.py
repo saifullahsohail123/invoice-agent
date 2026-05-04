@@ -17,10 +17,14 @@ class LineItem(BaseModel):
 class ExtractedInvoice(BaseModel):
     vendor_name: Optional[str] = None
     vendor_address: Optional[str] = None
+    vendor_phone: Optional[str] = None
     invoice_number: Optional[str] = None
     invoice_date: Optional[str] = None         # ISO format: YYYY-MM-DD
     due_date: Optional[str] = None
-    billing_address: Optional[str] = None
+    buyer_name: Optional[str] = None
+    buyer_address: Optional[str] = None
+    buyer_phone: Optional[str] = None
+    payment_details: Optional[str] = None
     line_items: List[LineItem] = Field(default_factory=list)
     subtotal: Optional[float] = None
     tax: Optional[float] = None
