@@ -3,6 +3,9 @@
 
 import torch
 from transformers import Qwen2_5_VLForConditionalGeneration, AutoProcessor
+from transformers.utils import logging
+# Suppress noisy hugging face deprecation warnings
+logging.set_verbosity_error()
 from config import MODEL_ID, MODEL_DTYPE
 
 _model = None
