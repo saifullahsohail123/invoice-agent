@@ -44,7 +44,7 @@ class InvoiceState(BaseModel):
     # Input
     source_path: str                               # Original file path
     source_type: Optional[Literal["pdf", "image"]] = None           # Detected type
-    images: List[Any] = Field(default_factory=list)  # PIL Images
+    images: List[str] = Field(default_factory=list)  # Base64 encoded JPEG strings
     current_page: int = 0                          # For multi-page PDFs
 
     # Classification

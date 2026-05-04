@@ -2,7 +2,7 @@ import torch
 from qwen_vl_utils import process_vision_info
 from models.loader import get_model_and_processor
 from schema import InvoiceState
-from utils.image_utils import crop_region, FIELD_TO_REGION
+from utils.image_utils import crop_region, FIELD_TO_REGION, base64_to_image
 from utils.json_utils import safe_parse_json
 
 REEXAMINE_PROMPT_TEMPLATE = """
@@ -50,7 +50,7 @@ def re_examiner_node(state: InvoiceState) -> InvoiceState:
         return state
 
     model, processor = get_model_and_processor()
-    image = state.images[state.current_page]
+    image = base64_to_image(state.images[state.current_page])
     low_conf_fields = state.extracted.low_confidence_fields.copy()
 
     for field in low_conf_fields:

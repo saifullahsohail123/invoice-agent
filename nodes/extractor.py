@@ -3,6 +3,7 @@ from qwen_vl_utils import process_vision_info
 from models.loader import get_model_and_processor
 from schema import InvoiceState, ExtractedInvoice, LineItem
 from utils.json_utils import safe_parse_json
+from utils.image_utils import base64_to_image
 from config import CONFIDENCE_THRESHOLD
 
 EXTRACT_PROMPT = """
@@ -86,7 +87,7 @@ def extractor_node(state: InvoiceState) -> InvoiceState:
 
     try:
         # For multi-page PDFs, use page index (default 0)
-        image = state.images[state.current_page]
+        image = base64_to_image(state.images[state.current_page])
 
         messages = [
             {

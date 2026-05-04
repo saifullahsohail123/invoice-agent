@@ -1,6 +1,19 @@
-# utils/image_utils.py
 from PIL import Image, ImageEnhance, ImageFilter
 from config import MAX_IMAGE_LONG_SIDE, CONTRAST_ENHANCEMENT
+import io
+import base64
+
+def image_to_base64(img: Image.Image) -> str:
+    buffered = io.BytesIO()
+    # Save as JPEG for compression and serialization
+    img.save(buffered, format="JPEG", quality=95)
+    img_str = base64.b64encode(buffered.getvalue()).decode("utf-8")
+    return img_str
+
+def base64_to_image(b64_str: str) -> Image.Image:
+    img_data = base64.b64decode(b64_str)
+    return Image.open(io.BytesIO(img_data)).convert("RGB")
+
 
 def preprocess_image(img: Image.Image) -> Image.Image:
     """

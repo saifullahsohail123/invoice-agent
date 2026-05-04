@@ -3,6 +3,7 @@ from qwen_vl_utils import process_vision_info
 from models.loader import get_model_and_processor
 from schema import InvoiceState
 from utils.json_utils import safe_parse_json
+from utils.image_utils import base64_to_image
 
 CLASSIFY_PROMPT = """
 You are a document classification expert.
@@ -44,7 +45,7 @@ def classifier_node(state: InvoiceState) -> InvoiceState:
         return state
 
     model, processor = get_model_and_processor()
-    image = state.images[0]  # Use first page for classification
+    image = base64_to_image(state.images[0])  # Use first page for classification
 
     try:
         messages = [

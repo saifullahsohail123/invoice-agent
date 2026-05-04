@@ -6,7 +6,7 @@ from pdf2image import convert_from_path
 from PIL import Image, ImageEnhance
 from pathlib import Path
 from schema import InvoiceState
-from utils.image_utils import preprocess_image
+from utils.image_utils import preprocess_image, image_to_base64
 
 SUPPORTED_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".tiff", ".tif", ".webp", ".bmp"}
 SUPPORTED_PDF_EXTENSIONS = {".pdf"}
@@ -44,7 +44,7 @@ def load_pdf_as_images(path: str, dpi: int = 200) -> list:
     """
     try:
         images = convert_from_path(path, dpi=dpi, fmt="RGB")
-        return [preprocess_image(img) for img in images]
+        return [image_to_base64(preprocess_image(img)) for img in images]
     except Exception:
         # Fallback: PyMuPDF
         doc = fitz.open(path)
@@ -53,14 +53,15 @@ def load_pdf_as_images(path: str, dpi: int = 200) -> list:
             mat = fitz.Matrix(dpi / 72, dpi / 72)
             pix = page.get_pixmap(matrix=mat, colorspace=fitz.csRGB)
             img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
-            images.append(preprocess_image(img))
+            images.append(image_to_base64(preprocess_image(img)))
         return images
 
 
 def load_image(path: str) -> list:
     """
-    Load a single image file. Returns a list with one PIL Image.
-    Handles EXIF rotation, converts to RGB (strips alpha).
+    Load a single image file. Returns a list with one base64 encoded PIL Image string.
+    Handles EXIF rotation, composites transparent images over a white background,
+    and converts to RGB.
     """
     img = Image.open(path)
     # Handle EXIF orientation
@@ -69,10 +70,17 @@ def load_image(path: str) -> list:
         img = ImageOps.exif_transpose(img)
     except Exception:
         pass
-    # Convert to RGB (handles RGBA PNGs, CMYK scans, etc.)
-    if img.mode != "RGB":
+    
+    # Handle transparency by creating a white background
+    if img.mode in ('RGBA', 'LA') or (img.mode == 'P' and 'transparency' in img.info):
+        alpha = img.convert('RGBA').split()[-1]
+        bg = Image.new("RGB", img.size, (255, 255, 255))
+        bg.paste(img, mask=alpha)
+        img = bg
+    elif img.mode != "RGB":
         img = img.convert("RGB")
-    return [preprocess_image(img)]
+        
+    return [image_to_base64(preprocess_image(img))]
 
 
 def input_handler_node(state: InvoiceState) -> InvoiceState:
