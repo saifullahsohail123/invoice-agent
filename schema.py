@@ -65,13 +65,8 @@ class InvoiceState(BaseModel):
 
     # Output
     status: Literal[
-        "pending",
-        "not_invoice",
-        "extracting",
-        "low_confidence",
-        "awaiting_human",
-        "complete",
-        "failed"
+        "pending", "not_invoice", "extracting", "low_confidence", 
+        "awaiting_human", "complete", "failed", "duplicate_file", "duplicate_logical"
     ] = "pending"
     error_message: Optional[str] = None
     db_row_id: Optional[int] = None
