@@ -76,21 +76,14 @@ def build_graph():
         )
 
     # After human approval, route to storage
-    builder.add_conditional_edges(
-        "human_interrupt",
-        confidence_router,
-        {
-            "storage": "storage",
-            "end_failed": END,
-        }
-    )
+    builder.add_edge("human_interrupt", "storage")
 
     builder.add_edge("storage", END)
 
-    # interrupt_before: pause execution at human_interrupt node
+    # interrupt_after: pause execution AFTER human_interrupt node is executed
     graph = builder.compile(
         checkpointer=checkpointer,
-        interrupt_before=["human_interrupt"],
+        interrupt_after=["human_interrupt"],
     )
 
     return graph
