@@ -83,11 +83,14 @@ if "final_state" in st.session_state:
                 graph.update_state(config, state) # Inject human-updated state
                 
                 # Step through the remainder of the graph (which is just 'storage')
-                final_event = None
                 for event in graph.stream(None, config=config):
-                    final_event = event
+                    pass
                     
-                st.session_state["final_state"] = graph.get_state(config).values
+                state_dict = graph.get_state(config).values
+                if isinstance(state_dict, dict):
+                    st.session_state["final_state"] = InvoiceState(**state_dict)
+                else:
+                    st.session_state["final_state"] = state_dict
                 st.rerun()
 
 # --- Database Viewer Tab ---
