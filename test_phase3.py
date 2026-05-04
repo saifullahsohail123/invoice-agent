@@ -8,18 +8,7 @@ def test_full_loop():
     final_state, thread_id = run_invoice(test_path)
     
     print("\n--- Pipeline Finished ---")
-    if getattr(final_state, "value", None):
-        # We need to unwrap the state since graph.stream yields dicts representing nodes
-        # Actually run_invoice returns the final node output, which is a dict of the state
-        # In Pydantic based langgraph, it might return the state object directly or wrapped.
-        for node_name, state_obj in final_state.items():
-            state = state_obj
-    else:
-        state = final_state
-
-    # With LangGraph, if it returns a dataclass or a dict
-    if isinstance(state, dict):
-        state = list(state.values())[0]
+    state = final_state
 
     print("Final Status:", state.status)
     if state.status == "complete":

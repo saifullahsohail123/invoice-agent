@@ -107,6 +107,15 @@ def run_invoice(file_path: str, thread_id: str = None) -> InvoiceState:
     final_state = None
 
     for event in graph.stream(initial_state, config=config):
-        final_state = event
+        pass
+
+    # Retrieve the final state directly from the graph checkpointer
+    state_dict = graph.get_state(config).values
+    
+    if isinstance(state_dict, InvoiceState):
+        final_state = state_dict
+    else:
+        # If LangGraph serialized it into a dict, reconstruct it
+        final_state = InvoiceState(**state_dict)
 
     return final_state, thread_id
