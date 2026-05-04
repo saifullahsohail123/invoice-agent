@@ -158,7 +158,13 @@ def _build_extracted_invoice(parsed: dict) -> ExtractedInvoice:
             confidence=item.get("confidence", 1.0),
         ))
 
-    field_confidence = parsed.get("field_confidence", {})
+    field_confidence_raw = parsed.get("field_confidence", {})
+    # Sanitize any None/null from JSON directly to 0.0 to satisfy Pydantic Schema
+    field_confidence = {
+        k: (v if v is not None else 0.0) 
+        for k, v in field_confidence_raw.items()
+    }
+    
     low_conf_fields = [
         field for field, score in field_confidence.items()
         if score < CONFIDENCE_THRESHOLD
