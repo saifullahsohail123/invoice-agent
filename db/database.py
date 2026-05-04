@@ -127,7 +127,13 @@ def insert_invoice(extracted_data, file_hash: str = None, file_name: str = None)
             ))
             
         if file_hash:
-            record_processed_file(file_hash, file_name or "unknown", invoice_id)
+            try:
+                cursor.execute(
+                    "INSERT INTO processed_files (file_hash, file_name, invoice_id) VALUES (?, ?, ?)",
+                    (file_hash, file_name or "unknown", invoice_id)
+                )
+            except sqlite3.IntegrityError:
+                pass # Proceed normally if the hash somehow arrived here separately
 
         conn.commit()
         return True, f"Invoice {extracted_data.invoice_number} successfully stored with ID {invoice_id}."
