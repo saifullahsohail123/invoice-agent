@@ -1,0 +1,1842 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Invoice Extraction Agent — LangGraph · Qwen2.5-VL · HITL</title>
+<style>
+  :root {
+    --bg-primary: #0d1117;
+    --bg-secondary: #161b22;
+    --bg-tertiary: #21262d;
+    --bg-card: #1c2128;
+    --accent: #7c3aed;
+    --accent-light: #9d5cf6;
+    --accent-dim: rgba(124, 58, 237, 0.15);
+    --accent-glow: rgba(124, 58, 237, 0.4);
+    --success: #22c55e;
+    --success-dim: rgba(34, 197, 94, 0.15);
+    --warning: #f59e0b;
+    --warning-dim: rgba(245, 158, 11, 0.15);
+    --danger: #ef4444;
+    --danger-dim: rgba(239, 68, 68, 0.15);
+    --text-primary: #e6edf3;
+    --text-secondary: #8b949e;
+    --text-muted: #484f58;
+    --border: #30363d;
+    --border-active: #7c3aed;
+    --node-idle: #21262d;
+    --node-active: #7c3aed;
+    --node-done: #22c55e;
+    --node-warn: #f59e0b;
+    --radius: 12px;
+    --radius-sm: 8px;
+    --shadow: 0 4px 24px rgba(0,0,0,0.4);
+    --shadow-glow: 0 0 24px rgba(124, 58, 237, 0.25);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans-serif;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── BACKGROUND GRID ── */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(124,58,237,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(124,58,237,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .page-wrapper { position: relative; z-index: 1; }
+
+  /* ── TOP NAV ── */
+  nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 32px;
+    background: rgba(13,17,23,0.85);
+    backdrop-filter: blur(16px);
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  .nav-left { display: flex; align-items: center; gap: 10px; }
+
+  .nav-logo {
+    width: 32px; height: 32px;
+    background: linear-gradient(135deg, var(--accent), #a855f7);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  .nav-logo svg { width: 18px; height: 18px; }
+
+  .nav-title {
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: -0.3px;
+    background: linear-gradient(90deg, #e6edf3, #9d5cf6);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .nav-links { display: flex; align-items: center; gap: 8px; }
+
+  .nav-link {
+    display: flex; align-items: center; gap: 6px;
+    padding: 7px 14px;
+    border-radius: 8px;
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    border: 1px solid var(--border);
+    background: var(--bg-secondary);
+    transition: all 0.2s;
+  }
+
+  .nav-link:hover {
+    color: var(--text-primary);
+    border-color: var(--accent);
+    background: var(--accent-dim);
+    box-shadow: 0 0 12px var(--accent-glow);
+  }
+
+  .nav-link svg { width: 14px; height: 14px; }
+
+  /* ── HEADER ── */
+  .hero {
+    text-align: center;
+    padding: 56px 32px 36px;
+  }
+
+  .hero-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 16px;
+    background: var(--accent-dim);
+    border: 1px solid rgba(124,58,237,0.4);
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--accent-light);
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    margin-bottom: 20px;
+  }
+
+  .pulse-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--accent-light);
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(0.8); }
+  }
+
+  .hero h1 {
+    font-size: clamp(28px, 5vw, 48px);
+    font-weight: 800;
+    letter-spacing: -1.5px;
+    line-height: 1.1;
+    margin-bottom: 14px;
+    background: linear-gradient(135deg, #e6edf3 0%, #c084fc 50%, #7c3aed 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .hero-tags {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 16px;
+  }
+
+  .tag {
+    display: flex; align-items: center; gap: 5px;
+    padding: 5px 12px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    background: var(--bg-secondary);
+  }
+
+  .tag svg { width: 12px; height: 12px; }
+
+  .tag.purple { border-color: rgba(124,58,237,0.4); color: #c084fc; background: rgba(124,58,237,0.08); }
+  .tag.green { border-color: rgba(34,197,94,0.4); color: #4ade80; background: rgba(34,197,94,0.08); }
+  .tag.amber { border-color: rgba(245,158,11,0.4); color: #fbbf24; background: rgba(245,158,11,0.08); }
+  .tag.blue { border-color: rgba(59,130,246,0.4); color: #60a5fa; background: rgba(59,130,246,0.08); }
+
+  /* ── DEMO MODE TOGGLE ── */
+  .demo-controls {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin: 0 32px 32px;
+  }
+
+  .demo-btn {
+    padding: 10px 22px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex; align-items: center; gap: 7px;
+  }
+
+  .demo-btn:hover { border-color: var(--accent); color: var(--text-primary); background: var(--accent-dim); }
+
+  .demo-btn.active {
+    background: linear-gradient(135deg, var(--accent), #a855f7);
+    border-color: transparent;
+    color: white;
+    box-shadow: 0 0 20px var(--accent-glow);
+  }
+
+  .demo-btn svg { width: 14px; height: 14px; }
+
+  .demo-label {
+    font-size: 12px;
+    color: var(--text-muted);
+    font-weight: 500;
+  }
+
+  /* ── MAIN GRID ── */
+  .main-grid {
+    display: grid;
+    grid-template-columns: 400px 1fr;
+    gap: 20px;
+    padding: 0 32px 32px;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+
+  /* ── CARDS ── */
+  .card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    box-shadow: var(--shadow);
+    transition: border-color 0.3s;
+  }
+
+  .card:hover { border-color: rgba(124,58,237,0.3); }
+
+  .card-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 10px;
+  }
+
+  .card-header-icon {
+    width: 30px; height: 30px;
+    border-radius: 8px;
+    background: var(--accent-dim);
+    border: 1px solid rgba(124,58,237,0.3);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .card-header-icon svg { width: 15px; height: 15px; color: var(--accent-light); }
+
+  .card-header h2 { font-size: 14px; font-weight: 700; letter-spacing: -0.2px; }
+
+  .card-header-sub { font-size: 12px; color: var(--text-muted); font-weight: 400; }
+
+  .card-body { padding: 20px; }
+
+  /* ── UPLOAD PANEL ── */
+  .upload-zone {
+    border: 2px dashed var(--border);
+    border-radius: var(--radius);
+    padding: 32px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s;
+    position: relative;
+    overflow: hidden;
+    background: var(--bg-secondary);
+  }
+
+  .upload-zone:hover, .upload-zone.drag-over {
+    border-color: var(--accent);
+    background: var(--accent-dim);
+    box-shadow: 0 0 20px var(--accent-glow);
+  }
+
+  .upload-zone-icon {
+    width: 52px; height: 52px;
+    border-radius: 12px;
+    background: var(--accent-dim);
+    border: 1px solid rgba(124,58,237,0.3);
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 14px;
+  }
+
+  .upload-zone-icon svg { width: 24px; height: 24px; color: var(--accent-light); }
+
+  .upload-zone p { font-size: 14px; color: var(--text-secondary); margin-bottom: 6px; }
+  .upload-zone span { font-size: 12px; color: var(--text-muted); }
+  .upload-zone input { display: none; }
+
+  #file-preview {
+    display: none;
+    margin-top: 16px;
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    background: var(--bg-secondary);
+  }
+
+  #file-preview img {
+    width: 100%;
+    max-height: 180px;
+    object-fit: contain;
+    display: block;
+    padding: 10px;
+  }
+
+  .file-preview-info {
+    padding: 10px 14px;
+    border-top: 1px solid var(--border);
+    display: flex; align-items: center; gap: 8px;
+  }
+
+  .file-preview-info svg { width: 14px; height: 14px; color: var(--accent-light); flex-shrink: 0; }
+
+  .file-preview-name { font-size: 13px; font-weight: 600; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  .file-preview-size { font-size: 12px; color: var(--text-muted); }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 11px 20px;
+    border-radius: 10px;
+    border: none;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    width: 100%;
+  }
+
+  .btn svg { width: 15px; height: 15px; }
+
+  .btn-primary {
+    background: linear-gradient(135deg, var(--accent), #a855f7);
+    color: white;
+    box-shadow: 0 4px 16px var(--accent-glow);
+  }
+
+  .btn-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 24px var(--accent-glow);
+  }
+
+  .btn-primary:disabled {
+    opacity: 0.5;
+    transform: none;
+    cursor: not-allowed;
+  }
+
+  .btn-secondary {
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+    border: 1px solid var(--border);
+  }
+
+  .btn-secondary:hover { border-color: var(--accent); color: var(--text-primary); background: var(--accent-dim); }
+
+  .btn-success {
+    background: linear-gradient(135deg, #15803d, #22c55e);
+    color: white;
+    box-shadow: 0 4px 16px rgba(34,197,94,0.3);
+  }
+
+  .btn-success:hover { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(34,197,94,0.4); }
+
+  .btn-warning {
+    background: linear-gradient(135deg, #92400e, #f59e0b);
+    color: white;
+  }
+
+  .upload-actions { display: flex; flex-direction: column; gap: 10px; margin-top: 16px; }
+
+  /* ── PIPELINE ── */
+  .pipeline-container {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .pipeline-row {
+    display: flex;
+    align-items: center;
+    gap: 0;
+  }
+
+  .pipeline-node {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+  }
+
+  .node-box {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 18px;
+    border-radius: 10px;
+    border: 2px solid var(--border);
+    background: var(--node-idle);
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    white-space: nowrap;
+    position: relative;
+    min-width: 150px;
+    justify-content: center;
+  }
+
+  .node-box.active {
+    border-color: var(--accent);
+    background: var(--accent-dim);
+    box-shadow: 0 0 20px var(--accent-glow), inset 0 0 10px rgba(124,58,237,0.1);
+    animation: nodeGlow 1s ease-in-out infinite alternate;
+  }
+
+  .node-box.done {
+    border-color: var(--success);
+    background: var(--success-dim);
+    box-shadow: 0 0 12px rgba(34,197,94,0.3);
+  }
+
+  .node-box.warn {
+    border-color: var(--warning);
+    background: var(--warning-dim);
+    box-shadow: 0 0 12px rgba(245,158,11,0.3);
+  }
+
+  .node-box.hitl {
+    border-color: var(--warning);
+    background: var(--warning-dim);
+    animation: nodeWarn 1s ease-in-out infinite alternate;
+  }
+
+  @keyframes nodeGlow {
+    from { box-shadow: 0 0 10px var(--accent-glow); }
+    to { box-shadow: 0 0 25px var(--accent-glow), 0 0 40px rgba(124,58,237,0.2); }
+  }
+
+  @keyframes nodeWarn {
+    from { box-shadow: 0 0 10px rgba(245,158,11,0.3); }
+    to { box-shadow: 0 0 25px rgba(245,158,11,0.5); }
+  }
+
+  .node-icon {
+    width: 28px; height: 28px;
+    border-radius: 7px;
+    background: rgba(255,255,255,0.05);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .node-icon svg { width: 14px; height: 14px; }
+
+  .node-label { font-size: 12px; font-weight: 700; letter-spacing: 0.3px; }
+  .node-sublabel { font-size: 10px; color: var(--text-muted); font-weight: 500; }
+
+  .node-status-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--text-muted);
+    transition: background 0.3s, box-shadow 0.3s;
+    flex-shrink: 0;
+  }
+
+  .node-box.active .node-status-dot { background: var(--accent-light); box-shadow: 0 0 6px var(--accent-light); animation: pulse 1s infinite; }
+  .node-box.done .node-status-dot { background: var(--success); box-shadow: 0 0 6px var(--success); }
+  .node-box.warn .node-status-dot, .node-box.hitl .node-status-dot { background: var(--warning); box-shadow: 0 0 6px var(--warning); }
+
+  .arrow-h {
+    width: 36px; height: 2px;
+    background: linear-gradient(90deg, var(--border), var(--border));
+    position: relative;
+    flex-shrink: 0;
+    transition: background 0.4s;
+  }
+
+  .arrow-h::after {
+    content: '';
+    position: absolute;
+    right: -1px;
+    top: 50%;
+    transform: translateY(-50%);
+    border: 5px solid transparent;
+    border-left-color: var(--border);
+    transition: border-left-color 0.4s;
+  }
+
+  .arrow-h.lit { background: linear-gradient(90deg, var(--success), var(--accent)); }
+  .arrow-h.lit::after { border-left-color: var(--accent); }
+
+  .arrow-v {
+    width: 2px; height: 28px;
+    background: var(--border);
+    margin: 0 auto;
+    position: relative;
+    transition: background 0.4s;
+  }
+
+  .arrow-v::after {
+    content: '';
+    position: absolute;
+    bottom: -1px;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 5px solid transparent;
+    border-top-color: var(--border);
+    transition: border-top-color 0.4s;
+  }
+
+  .arrow-v.lit { background: linear-gradient(180deg, var(--success), var(--accent)); }
+  .arrow-v.lit::after { border-top-color: var(--accent); }
+
+  .router-block {
+    padding: 10px 16px;
+    border-radius: 8px;
+    border: 2px solid var(--border);
+    background: var(--node-idle);
+    text-align: center;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+    transition: all 0.4s;
+    min-width: 120px;
+  }
+
+  .router-block.active {
+    border-color: var(--warning);
+    background: var(--warning-dim);
+    color: var(--warning);
+    box-shadow: 0 0 16px rgba(245,158,11,0.3);
+  }
+
+  .router-block.done { border-color: var(--success); background: var(--success-dim); color: var(--success); }
+
+  .route-label {
+    font-size: 10px;
+    color: var(--text-muted);
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 4px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    white-space: nowrap;
+    transition: all 0.3s;
+  }
+
+  .route-label.high { color: var(--success); border-color: rgba(34,197,94,0.3); background: rgba(34,197,94,0.1); }
+  .route-label.low { color: var(--warning); border-color: rgba(245,158,11,0.3); background: rgba(245,158,11,0.1); }
+  .route-label.hitl { color: var(--danger); border-color: rgba(239,68,68,0.3); background: rgba(239,68,68,0.1); }
+
+  /* pipeline layout */
+  .pipeline-visual {
+    padding: 20px;
+    min-height: 320px;
+  }
+
+  .pipeline-flow {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+    padding: 10px 0;
+  }
+
+  .flow-row {
+    display: flex;
+    align-items: center;
+    gap: 0;
+  }
+
+  .flow-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+  }
+
+  .flow-branch {
+    display: flex;
+    align-items: flex-start;
+    gap: 20px;
+    margin-top: 0;
+  }
+
+  .branch-arm {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  /* status bar */
+  #pipeline-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    border-top: 1px solid var(--border);
+    font-size: 12px;
+    color: var(--text-muted);
+    min-height: 44px;
+  }
+
+  #pipeline-status .status-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--text-muted);
+    flex-shrink: 0;
+  }
+
+  #pipeline-status.running .status-dot { background: var(--accent-light); animation: pulse 1s infinite; }
+  #pipeline-status.success .status-dot { background: var(--success); }
+  #pipeline-status.warning .status-dot { background: var(--warning); animation: pulse 1s infinite; }
+
+  /* ── EXTRACTED DATA PANEL ── */
+  .data-panel { margin-top: 20px; }
+
+  .fields-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
+  .field-item {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    transition: border-color 0.3s;
+  }
+
+  .field-item:hover { border-color: rgba(124,58,237,0.4); }
+  .field-item.full-width { grid-column: 1 / -1; }
+
+  .field-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 5px;
+  }
+
+  .field-value {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .field-value.amount { color: var(--success); font-size: 18px; }
+  .field-value.inv-num { color: var(--accent-light); font-family: 'SFMono-Regular', Consolas, monospace; }
+
+  .conf-bar-wrap {
+    margin-top: 6px;
+    height: 6px;
+    background: var(--bg-tertiary);
+    border-radius: 999px;
+    overflow: hidden;
+  }
+
+  .conf-bar {
+    height: 100%;
+    border-radius: 999px;
+    transition: width 1s cubic-bezier(0.4, 0, 0.2, 1);
+    width: 0%;
+  }
+
+  .conf-bar.high { background: linear-gradient(90deg, #15803d, var(--success)); }
+  .conf-bar.low { background: linear-gradient(90deg, #92400e, var(--warning)); }
+
+  .conf-label {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 6px;
+  }
+
+  .conf-pct { font-size: 20px; font-weight: 800; }
+  .conf-pct.high { color: var(--success); }
+  .conf-pct.low { color: var(--warning); }
+
+  /* ── HITL FORM ── */
+  #hitl-panel {
+    display: none;
+    margin-top: 16px;
+    padding: 16px;
+    background: rgba(245,158,11,0.06);
+    border: 1px solid rgba(245,158,11,0.3);
+    border-radius: 10px;
+  }
+
+  .hitl-header {
+    display: flex; align-items: center; gap: 8px;
+    margin-bottom: 14px;
+  }
+
+  .hitl-icon {
+    width: 28px; height: 28px;
+    border-radius: 7px;
+    background: rgba(245,158,11,0.15);
+    border: 1px solid rgba(245,158,11,0.4);
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  .hitl-icon svg { width: 14px; height: 14px; color: var(--warning); }
+
+  .hitl-title { font-size: 13px; font-weight: 700; color: var(--warning); }
+  .hitl-sub { font-size: 11px; color: var(--text-muted); }
+
+  .hitl-fields { display: flex; flex-direction: column; gap: 10px; }
+
+  .hitl-field label {
+    display: block;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 5px;
+  }
+
+  .hitl-field input {
+    width: 100%;
+    padding: 9px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-size: 13px;
+    font-weight: 500;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    outline: none;
+  }
+
+  .hitl-field input:focus {
+    border-color: var(--warning);
+    box-shadow: 0 0 10px rgba(245,158,11,0.2);
+  }
+
+  /* ── STATUS BADGE ── */
+  .status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 700;
+    margin-top: 14px;
+  }
+
+  .status-badge svg { width: 13px; height: 13px; }
+
+  .badge-success {
+    background: var(--success-dim);
+    border: 1px solid rgba(34,197,94,0.4);
+    color: var(--success);
+  }
+
+  .badge-warning {
+    background: var(--warning-dim);
+    border: 1px solid rgba(245,158,11,0.4);
+    color: var(--warning);
+    animation: pulse 2s infinite;
+  }
+
+  .badge-idle {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+  }
+
+  /* ── RIGHT COLUMN LAYOUT ── */
+  .right-col {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .top-right-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+
+  /* ── TECH STACK CARD ── */
+  .tech-items { display: flex; flex-direction: column; gap: 10px; }
+
+  .tech-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--bg-secondary);
+    transition: all 0.2s;
+  }
+
+  .tech-item:hover { border-color: rgba(124,58,237,0.4); background: var(--accent-dim); }
+
+  .tech-item-icon {
+    width: 34px; height: 34px;
+    border-radius: 9px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .tech-item-icon svg { width: 18px; height: 18px; }
+
+  .tech-item-name { font-size: 13px; font-weight: 700; }
+  .tech-item-desc { font-size: 11px; color: var(--text-muted); font-weight: 500; }
+
+  /* ── DATABASE TABLE ── */
+  .db-section { padding: 0 32px 48px; max-width: 1400px; margin: 0 auto; }
+
+  .db-table-wrap { overflow-x: auto; }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+
+  thead tr {
+    border-bottom: 1px solid var(--border);
+  }
+
+  th {
+    padding: 11px 16px;
+    text-align: left;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+  }
+
+  td {
+    padding: 13px 16px;
+    border-bottom: 1px solid rgba(48,54,61,0.5);
+    white-space: nowrap;
+  }
+
+  tbody tr { transition: background 0.15s; }
+  tbody tr:hover { background: rgba(124,58,237,0.04); }
+
+  .td-mono { font-family: 'SFMono-Regular', Consolas, monospace; color: var(--accent-light); }
+  .td-amount { font-weight: 700; color: var(--success); }
+
+  .conf-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+  }
+
+  .conf-pill.high { background: var(--success-dim); color: var(--success); border: 1px solid rgba(34,197,94,0.3); }
+  .conf-pill.med { background: var(--warning-dim); color: var(--warning); border: 1px solid rgba(245,158,11,0.3); }
+  .conf-pill.low { background: var(--danger-dim); color: var(--danger); border: 1px solid rgba(239,68,68,0.3); }
+
+  .db-new-row {
+    animation: slideInRow 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+    background: rgba(124,58,237,0.08) !important;
+  }
+
+  @keyframes slideInRow {
+    from { opacity: 0; transform: translateX(-12px); background: rgba(124,58,237,0.2); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+
+  /* ── FOOTER ── */
+  footer {
+    text-align: center;
+    padding: 28px 32px;
+    border-top: 1px solid var(--border);
+    color: var(--text-muted);
+    font-size: 12px;
+  }
+
+  footer a { color: var(--accent-light); text-decoration: none; }
+  footer a:hover { text-decoration: underline; }
+
+  /* ── SHIMMER for loading ── */
+  .shimmer {
+    background: linear-gradient(90deg, var(--bg-secondary) 25%, var(--bg-tertiary) 50%, var(--bg-secondary) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+  }
+
+  @keyframes shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+
+  /* ── TOAST ── */
+  .toast {
+    position: fixed;
+    bottom: 28px;
+    right: 28px;
+    padding: 14px 20px;
+    border-radius: 12px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    font-weight: 600;
+    z-index: 999;
+    transform: translateY(80px);
+    opacity: 0;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .toast.show { transform: translateY(0); opacity: 1; }
+  .toast.success { border-color: rgba(34,197,94,0.4); color: var(--success); }
+  .toast.warning { border-color: rgba(245,158,11,0.4); color: var(--warning); }
+  .toast svg { width: 16px; height: 16px; flex-shrink: 0; }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 1100px) {
+    .main-grid { grid-template-columns: 1fr; }
+    .top-right-row { grid-template-columns: 1fr; }
+  }
+
+  @media (max-width: 700px) {
+    nav { padding: 12px 16px; }
+    .hero { padding: 36px 16px 24px; }
+    .main-grid, .db-section { padding-left: 16px; padding-right: 16px; }
+    .fields-grid { grid-template-columns: 1fr; }
+  }
+
+  /* node status text */
+  .node-info {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    flex: 1;
+  }
+</style>
+</head>
+<body>
+<div class="page-wrapper">
+
+<!-- ── NAV ── -->
+<nav>
+  <div class="nav-left">
+    <div class="nav-logo">
+      <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+        <polyline points="14 2 14 8 20 8"/>
+        <line x1="16" y1="13" x2="8" y2="13"/>
+        <line x1="16" y1="17" x2="8" y2="17"/>
+        <polyline points="10 9 9 9 8 9"/>
+      </svg>
+    </div>
+    <span class="nav-title">Invoice Extraction Agent</span>
+  </div>
+  <div class="nav-links">
+    <a class="nav-link" href="/portfolio">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      Portfolio
+    </a>
+    <a class="nav-link" href="https://github.com/saifullahsohail123/invoice-agent" target="_blank" rel="noopener">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0 1 12 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0 0 22 12.017C22 6.484 17.522 2 12 2z"/></svg>
+      GitHub
+    </a>
+  </div>
+</nav>
+
+<!-- ── HERO ── -->
+<div class="hero">
+  <div class="hero-badge">
+    <div class="pulse-dot"></div>
+    Live Portfolio Demo
+  </div>
+  <h1>Invoice Extraction Agent</h1>
+  <div class="hero-tags">
+    <span class="tag purple">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg>
+      LangGraph StateGraph
+    </span>
+    <span class="tag green">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+      Qwen2.5-VL Vision
+    </span>
+    <span class="tag amber">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      Human-in-the-Loop
+    </span>
+    <span class="tag blue">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+      SQLite Storage
+    </span>
+  </div>
+</div>
+
+<!-- ── DEMO CONTROLS ── -->
+<div class="demo-controls">
+  <span class="demo-label">Try a scenario:</span>
+  <button class="demo-btn" id="btn-high-conf" onclick="runDemo('high')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+    High Confidence (94%)
+  </button>
+  <button class="demo-btn" id="btn-low-conf" onclick="runDemo('low')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+    Low Confidence — HITL (62%)
+  </button>
+</div>
+
+<!-- ── MAIN GRID ── -->
+<div class="main-grid">
+
+  <!-- LEFT: Upload Panel -->
+  <div>
+    <div class="card">
+      <div class="card-header">
+        <div class="card-header-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--accent-light)"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        </div>
+        <div>
+          <h2>Upload Invoice</h2>
+          <div class="card-header-sub">Images, PDF, JPEG, PNG</div>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="upload-zone" id="upload-zone" onclick="document.getElementById('file-input').click()"
+          ondragover="handleDragOver(event)" ondrop="handleDrop(event)" ondragleave="handleDragLeave(event)">
+          <input type="file" id="file-input" accept="image/*,.pdf" onchange="handleFileSelect(event)">
+          <div class="upload-zone-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+          </div>
+          <p>Drag &amp; drop invoice here</p>
+          <span>Supports PDF, PNG, JPG, WEBP</span>
+        </div>
+
+        <div id="file-preview">
+          <img id="preview-img" src="" alt="Invoice preview">
+          <div class="file-preview-info">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            <span class="file-preview-name" id="file-name">invoice.png</span>
+            <span class="file-preview-size" id="file-size">—</span>
+          </div>
+        </div>
+
+        <div class="upload-actions">
+          <button class="btn btn-primary" id="process-btn" onclick="runDemo('high')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            Process Invoice
+          </button>
+          <button class="btn btn-secondary" onclick="loadDemoFile()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+            Or try a demo invoice
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tech Stack Card -->
+    <div class="card" style="margin-top:20px;">
+      <div class="card-header">
+        <div class="card-header-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--accent-light)"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+        </div>
+        <div>
+          <h2>Agent Architecture</h2>
+          <div class="card-header-sub">Technology Stack</div>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="tech-items">
+          <div class="tech-item">
+            <div class="tech-item-icon" style="background:rgba(124,58,237,0.15);border:1px solid rgba(124,58,237,0.3);">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#c084fc" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg>
+            </div>
+            <div>
+              <div class="tech-item-name">LangGraph StateGraph</div>
+              <div class="tech-item-desc">Directed graph agent orchestration</div>
+            </div>
+          </div>
+          <div class="tech-item">
+            <div class="tech-item-icon" style="background:rgba(34,197,94,0.15);border:1px solid rgba(34,197,94,0.3);">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#4ade80" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            </div>
+            <div>
+              <div class="tech-item-name">Qwen2.5-VL</div>
+              <div class="tech-item-desc">Vision-Language Model for OCR extraction</div>
+            </div>
+          </div>
+          <div class="tech-item">
+            <div class="tech-item-icon" style="background:rgba(59,130,246,0.15);border:1px solid rgba(59,130,246,0.3);">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            </div>
+            <div>
+              <div class="tech-item-name">MemorySaver Checkpointer</div>
+              <div class="tech-item-desc">In-memory state persistence &amp; replay</div>
+            </div>
+          </div>
+          <div class="tech-item">
+            <div class="tech-item-icon" style="background:rgba(245,158,11,0.15);border:1px solid rgba(245,158,11,0.3);">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            </div>
+            <div>
+              <div class="tech-item-name">HITL Interrupt Pattern</div>
+              <div class="tech-item-desc">Human correction for low-confidence docs</div>
+            </div>
+          </div>
+          <div class="tech-item">
+            <div class="tech-item-icon" style="background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.3);">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+            </div>
+            <div>
+              <div class="tech-item-name">SQLite Storage</div>
+              <div class="tech-item-desc">Duplicate detection + persistent storage</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT COLUMN -->
+  <div class="right-col">
+
+    <!-- Pipeline Card -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-header-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--accent-light)"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        </div>
+        <div>
+          <h2>LangGraph Pipeline</h2>
+          <div class="card-header-sub">Real-time node execution flow</div>
+        </div>
+      </div>
+
+      <!-- Pipeline visualization -->
+      <div class="pipeline-visual">
+        <div class="pipeline-flow">
+
+          <!-- Row 1: input_handler -->
+          <div class="flow-col">
+            <div class="node-box" id="node-input">
+              <div class="node-status-dot"></div>
+              <div class="node-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+              </div>
+              <div class="node-info">
+                <span class="node-label">input_handler</span>
+                <span class="node-sublabel">Hash &amp; validate file</span>
+              </div>
+            </div>
+            <div class="arrow-v" id="arr-input-cls"></div>
+          </div>
+
+          <!-- Row 2: classifier -->
+          <div class="flow-col">
+            <div class="node-box" id="node-classifier">
+              <div class="node-status-dot"></div>
+              <div class="node-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+              </div>
+              <div class="node-info">
+                <span class="node-label">classifier</span>
+                <span class="node-sublabel">Is this an invoice?</span>
+              </div>
+            </div>
+            <div class="arrow-v" id="arr-cls-ext"></div>
+          </div>
+
+          <!-- Row 3: extractor -->
+          <div class="flow-col">
+            <div class="node-box" id="node-extractor">
+              <div class="node-status-dot"></div>
+              <div class="node-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+              </div>
+              <div class="node-info">
+                <span class="node-label">extractor</span>
+                <span class="node-sublabel">Qwen2.5-VL field extraction</span>
+              </div>
+            </div>
+            <div class="arrow-v" id="arr-ext-rtr"></div>
+          </div>
+
+          <!-- Row 4: confidence_router (diamond) -->
+          <div class="flow-col">
+            <div class="router-block" id="node-router">
+              ◈ confidence_router
+            </div>
+          </div>
+
+          <!-- Row 5: branching paths -->
+          <div style="display:flex; gap:0; margin-top:0; align-items:flex-start; justify-content:center;">
+            <!-- Branch: HIGH → storage -->
+            <div class="branch-arm" id="branch-high" style="margin-right:16px;">
+              <div style="display:flex;align-items:center;gap:0;">
+                <div class="arrow-v" id="arr-high" style="height:20px;"></div>
+              </div>
+              <div style="display:flex;flex-direction:column;align-items:center;gap:0;">
+                <span class="route-label high" id="lbl-high">HIGH ≥ 85%</span>
+                <div class="arrow-v" id="arr-high2" style="height:16px;"></div>
+                <div class="node-box" id="node-storage" style="min-width:130px;">
+                  <div class="node-status-dot"></div>
+                  <div class="node-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+                  </div>
+                  <div class="node-info">
+                    <span class="node-label">storage</span>
+                    <span class="node-sublabel">Save to SQLite</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Branch: LOW → re_examiner loop -->
+            <div class="branch-arm" id="branch-low" style="margin-right:16px;">
+              <div class="arrow-v" id="arr-low" style="height:20px;"></div>
+              <span class="route-label low" id="lbl-low">LOW &lt; 85%</span>
+              <div class="arrow-v" id="arr-low2" style="height:16px;"></div>
+              <div class="node-box" id="node-reexam" style="min-width:130px;">
+                <div class="node-status-dot"></div>
+                <div class="node-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.1"/></svg>
+                </div>
+                <div class="node-info">
+                  <span class="node-label">re_examiner</span>
+                  <span class="node-sublabel">Retry (max 2×)</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Branch: HITL -->
+            <div class="branch-arm" id="branch-hitl">
+              <div class="arrow-v" id="arr-hitl" style="height:20px;"></div>
+              <span class="route-label hitl" id="lbl-hitl">EXHAUSTED</span>
+              <div class="arrow-v" id="arr-hitl2" style="height:16px;"></div>
+              <div class="node-box" id="node-hitl-node" style="min-width:130px;">
+                <div class="node-status-dot"></div>
+                <div class="node-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                </div>
+                <div class="node-info">
+                  <span class="node-label">human_interrupt</span>
+                  <span class="node-sublabel">HITL correction</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <div id="pipeline-status">
+        <div class="status-dot"></div>
+        <span id="pipeline-status-text">Idle — upload an invoice or try a demo above</span>
+      </div>
+    </div>
+
+    <!-- Extracted Data Panel -->
+    <div class="card" id="extracted-card">
+      <div class="card-header">
+        <div class="card-header-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--accent-light)"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+        </div>
+        <div>
+          <h2>Extracted Data</h2>
+          <div class="card-header-sub" id="extracted-sub">Waiting for input…</div>
+        </div>
+        <div style="margin-left:auto;" id="result-badge">
+          <span class="status-badge badge-idle">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            Pending
+          </span>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="fields-grid" id="fields-grid">
+          <!-- filled by JS -->
+          <div class="field-item" style="grid-column:1/-1; min-height:80px; display:flex; align-items:center; justify-content:center; color:var(--text-muted); font-size:13px;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="20" height="20" style="margin-right:8px;opacity:0.4;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            Run the pipeline to see extracted fields
+          </div>
+        </div>
+
+        <!-- HITL Panel -->
+        <div id="hitl-panel">
+          <div class="hitl-header">
+            <div class="hitl-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            </div>
+            <div>
+              <div class="hitl-title">Human Review Required</div>
+              <div class="hitl-sub">Confidence below threshold — please verify &amp; correct</div>
+            </div>
+          </div>
+          <div class="hitl-fields">
+            <div class="hitl-field">
+              <label>Vendor Name</label>
+              <input type="text" id="hitl-vendor" value="TechCorp Solutions Ltd.">
+            </div>
+            <div class="hitl-field">
+              <label>Buyer Name</label>
+              <input type="text" id="hitl-buyer" value="Acme Corporation">
+            </div>
+            <div class="hitl-field">
+              <label>Invoice Number</label>
+              <input type="text" id="hitl-invnum" value="INV-2024-00847">
+            </div>
+            <div class="hitl-field">
+              <label>Total Amount</label>
+              <input type="text" id="hitl-total" value="$12,450.00">
+            </div>
+          </div>
+          <div style="margin-top:12px; display:flex; gap:8px;">
+            <button class="btn btn-warning" style="flex:0.4;" onclick="approveHITL()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              Approve &amp; Save
+            </button>
+            <button class="btn btn-secondary" style="flex:0.6;" onclick="showToast('Changes discarded.', 'warning')">
+              Discard
+            </button>
+          </div>
+        </div>
+
+        <div style="margin-top:14px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+          <div id="result-status-badge"></div>
+          <button class="btn btn-secondary" id="approve-btn" style="display:none; width:auto; padding:10px 20px;" onclick="approveHigh()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            Approve &amp; Save
+          </button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ── DATABASE TABLE ── -->
+<div class="db-section">
+  <div class="card">
+    <div class="card-header">
+      <div class="card-header-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--accent-light)"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+      </div>
+      <div>
+        <h2>Invoices Database</h2>
+        <div class="card-header-sub">SQLite — extracted &amp; stored records</div>
+      </div>
+      <div style="margin-left:auto; display:flex; align-items:center; gap:8px;">
+        <span style="font-size:12px; color:var(--text-muted);">Total rows:</span>
+        <span id="db-count" style="font-size:13px; font-weight:700; color:var(--accent-light);">3</span>
+      </div>
+    </div>
+    <div class="card-body" style="padding:0;">
+      <div class="db-table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Invoice #</th>
+              <th>Vendor</th>
+              <th>Buyer</th>
+              <th>Date</th>
+              <th>Total</th>
+              <th>Confidence</th>
+              <th>Source</th>
+              <th>Stored At</th>
+            </tr>
+          </thead>
+          <tbody id="db-tbody">
+            <tr>
+              <td style="color:var(--text-muted);">001</td>
+              <td class="td-mono">INV-2024-00632</td>
+              <td>GlobalTech Inc.</td>
+              <td>XYZ Retail Co.</td>
+              <td>2024-01-18</td>
+              <td class="td-amount">$8,320.00</td>
+              <td><span class="conf-pill high">97%</span></td>
+              <td style="color:var(--text-muted); font-size:12px;">Auto</td>
+              <td style="color:var(--text-muted); font-size:12px;">2024-01-18 09:14</td>
+            </tr>
+            <tr>
+              <td style="color:var(--text-muted);">002</td>
+              <td class="td-mono">INV-2024-00714</td>
+              <td>Apex Supplies Ltd.</td>
+              <td>MegaCorp Ltd.</td>
+              <td>2024-02-05</td>
+              <td class="td-amount">$3,780.50</td>
+              <td><span class="conf-pill med">71% — HITL</span></td>
+              <td style="color:var(--text-muted); font-size:12px;">HITL</td>
+              <td style="color:var(--text-muted); font-size:12px;">2024-02-05 14:32</td>
+            </tr>
+            <tr>
+              <td style="color:var(--text-muted);">003</td>
+              <td class="td-mono">INV-2024-00801</td>
+              <td>Vertex Systems</td>
+              <td>BlueStar Org.</td>
+              <td>2024-03-02</td>
+              <td class="td-amount">$21,000.00</td>
+              <td><span class="conf-pill high">91%</span></td>
+              <td style="color:var(--text-muted); font-size:12px;">Auto</td>
+              <td style="color:var(--text-muted); font-size:12px;">2024-03-02 11:08</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── FOOTER ── -->
+<footer>
+  <p>Built with <a href="https://www.langchain.com/langgraph" target="_blank">LangGraph</a> · <a href="https://huggingface.co/Qwen/Qwen2.5-VL-7B-Instruct" target="_blank">Qwen2.5-VL</a> · Python</p>
+  <p style="margin-top:6px;">Portfolio demo for <a href="https://vortexlogiclabs.com/InvoiceAgent" target="_blank">vortexlogiclabs.com/InvoiceAgent</a></p>
+</footer>
+
+</div><!-- end page-wrapper -->
+
+<!-- Toast -->
+<div class="toast" id="toast">
+  <svg id="toast-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+  <span id="toast-msg">Done!</span>
+</div>
+
+<script>
+// ── STATE ──
+let demoMode = null;
+let isRunning = false;
+let dbRowCount = 3;
+
+// ── NODE IDs ──
+const NODES = ['node-input','node-classifier','node-extractor','node-router'];
+const ARROWS = ['arr-input-cls','arr-cls-ext','arr-ext-rtr'];
+
+// ── RESET PIPELINE ──
+function resetPipeline() {
+  [...NODES].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.className = el.className.replace(/\b(active|done|warn|hitl)\b/g,'').trim() + ' ';
+    // normalize
+    if (el) el.className = el.className.replace(/\s+/g,' ').trim();
+  });
+  ['node-storage','node-reexam','node-hitl-node'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.className = 'node-box'; }
+  });
+  ARROWS.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.classList.remove('lit');
+  });
+  ['arr-high','arr-high2','arr-low','arr-low2','arr-hitl','arr-hitl2'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.classList.remove('lit');
+  });
+  document.getElementById('node-router').className = 'router-block';
+  setPipelineStatus('idle', 'Idle — running pipeline…');
+}
+
+function setNodeState(id, state) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.classList.remove('active','done','warn','hitl');
+  if (state) el.classList.add(state);
+}
+
+function setPipelineStatus(cls, text) {
+  const el = document.getElementById('pipeline-status');
+  el.className = cls;
+  document.getElementById('pipeline-status-text').textContent = text;
+}
+
+function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+// ── MAIN DEMO RUNNER ──
+async function runDemo(mode) {
+  if (isRunning) return;
+  isRunning = true;
+  demoMode = mode;
+
+  document.getElementById('btn-high-conf').classList.toggle('active', mode === 'high');
+  document.getElementById('btn-low-conf').classList.toggle('active', mode === 'low');
+
+  resetPipeline();
+  clearExtracted();
+  document.getElementById('hitl-panel').style.display = 'none';
+  document.getElementById('approve-btn').style.display = 'none';
+  document.getElementById('result-status-badge').innerHTML = '';
+  document.getElementById('result-badge').innerHTML = `<span class="status-badge badge-idle">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+    Processing…
+  </span>`;
+  document.getElementById('extracted-sub').textContent = 'Processing pipeline…';
+
+  if (!document.getElementById('file-preview').style.display || document.getElementById('file-preview').style.display === 'none') {
+    loadDemoFile();
+  }
+
+  setPipelineStatus('running', 'Starting pipeline…');
+  await delay(300);
+
+  // Step 1: input_handler
+  setPipelineStatus('running', 'input_handler — validating file hash…');
+  setNodeState('node-input','active');
+  await delay(700);
+  setNodeState('node-input','done');
+  document.getElementById('arr-input-cls').classList.add('lit');
+  await delay(300);
+
+  // Step 2: classifier
+  setPipelineStatus('running', 'classifier — checking if document is an invoice…');
+  setNodeState('node-classifier','active');
+  await delay(800);
+  setNodeState('node-classifier','done');
+  document.getElementById('arr-cls-ext').classList.add('lit');
+  await delay(300);
+
+  // Step 3: extractor
+  setPipelineStatus('running', 'extractor — Qwen2.5-VL extracting fields…');
+  setNodeState('node-extractor','active');
+  await delay(900);
+  setNodeState('node-extractor','done');
+  document.getElementById('arr-ext-rtr').classList.add('lit');
+  await delay(300);
+
+  // Step 4: confidence_router
+  setPipelineStatus('running', 'confidence_router — evaluating score…');
+  document.getElementById('node-router').classList.add('active');
+  await delay(700);
+  document.getElementById('node-router').classList.remove('active');
+  document.getElementById('node-router').classList.add('done');
+  await delay(300);
+
+  if (mode === 'high') {
+    // High confidence path
+    document.getElementById('arr-high').classList.add('lit');
+    await delay(300);
+    document.getElementById('arr-high2').classList.add('lit');
+    await delay(200);
+    setPipelineStatus('running', 'storage — saving to SQLite…');
+    setNodeState('node-storage','active');
+    await delay(700);
+    setNodeState('node-storage','done');
+    await delay(200);
+    setPipelineStatus('success', 'Complete — Invoice saved to database automatically.');
+    showExtracted('high');
+  } else {
+    // Low confidence path: re_examiner ×2 → HITL
+    document.getElementById('arr-low').classList.add('lit');
+    await delay(200);
+    document.getElementById('arr-low2').classList.add('lit');
+    await delay(200);
+    setPipelineStatus('running', 're_examiner — retry #1…');
+    setNodeState('node-reexam','active');
+    await delay(800);
+    setNodeState('node-reexam','warn');
+
+    await delay(400);
+    setPipelineStatus('running', 're_examiner — retry #2…');
+    setNodeState('node-reexam','active');
+    await delay(800);
+    setNodeState('node-reexam','warn');
+
+    await delay(400);
+    // Exhausted → HITL
+    document.getElementById('arr-hitl').classList.add('lit');
+    await delay(200);
+    document.getElementById('arr-hitl2').classList.add('lit');
+    await delay(200);
+    setPipelineStatus('warning', 'human_interrupt — awaiting human review (HITL)');
+    setNodeState('node-hitl-node','hitl');
+    await delay(500);
+    showExtracted('low');
+  }
+
+  isRunning = false;
+}
+
+// ── DISPLAY EXTRACTED ──
+function clearExtracted() {
+  document.getElementById('fields-grid').innerHTML = `
+    <div class="field-item" style="grid-column:1/-1; min-height:60px; display:flex; align-items:center; justify-content:center; color:var(--text-muted); font-size:13px;">
+      <span style="opacity:0.5;">Processing…</span>
+    </div>`;
+}
+
+function showExtracted(mode) {
+  const conf = mode === 'high' ? 94 : 62;
+  const confClass = conf >= 85 ? 'high' : 'low';
+
+  document.getElementById('fields-grid').innerHTML = `
+    <div class="field-item">
+      <div class="field-label">Vendor Name</div>
+      <div class="field-value">TechCorp Solutions Ltd.</div>
+    </div>
+    <div class="field-item">
+      <div class="field-label">Vendor Phone</div>
+      <div class="field-value">+1-555-0192</div>
+    </div>
+    <div class="field-item">
+      <div class="field-label">Buyer Name</div>
+      <div class="field-value">Acme Corporation</div>
+    </div>
+    <div class="field-item">
+      <div class="field-label">Invoice Date</div>
+      <div class="field-value">2024-03-15</div>
+    </div>
+    <div class="field-item">
+      <div class="field-label">Invoice Number</div>
+      <div class="field-value inv-num">INV-2024-00847</div>
+    </div>
+    <div class="field-item">
+      <div class="field-label">Total Amount</div>
+      <div class="field-value amount">$12,450.00</div>
+    </div>
+    <div class="field-item full-width">
+      <div class="field-label">Overall Confidence</div>
+      <div class="conf-label">
+        <span class="conf-pct ${confClass}">${conf}%</span>
+        <span style="font-size:12px; color:var(--text-muted);">${conf >= 85 ? 'Auto-approved' : 'Human review required'}</span>
+      </div>
+      <div class="conf-bar-wrap">
+        <div class="conf-bar ${confClass}" id="conf-fill" style="width:0%"></div>
+      </div>
+    </div>
+  `;
+
+  // Animate confidence bar
+  setTimeout(() => {
+    const fill = document.getElementById('conf-fill');
+    if (fill) fill.style.width = conf + '%';
+  }, 100);
+
+  document.getElementById('extracted-sub').textContent = `Qwen2.5-VL extraction complete`;
+
+  if (mode === 'high') {
+    document.getElementById('result-badge').innerHTML = `<span class="status-badge badge-success">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+      Saved to Database
+    </span>`;
+    document.getElementById('approve-btn').style.display = 'none';
+    document.getElementById('hitl-panel').style.display = 'none';
+    // Add to DB table
+    setTimeout(() => addDbRow('Auto'), 500);
+    showToast('Invoice extracted and saved automatically!', 'success');
+  } else {
+    document.getElementById('result-badge').innerHTML = `<span class="status-badge badge-warning">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+      HITL Required
+    </span>`;
+    document.getElementById('hitl-panel').style.display = 'block';
+    document.getElementById('hitl-panel').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    showToast('Low confidence — human review required!', 'warning');
+  }
+}
+
+// ── ADD DB ROW ──
+function addDbRow(source) {
+  dbRowCount++;
+  document.getElementById('db-count').textContent = dbRowCount;
+
+  const now = new Date();
+  const dateStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+  const timeStr = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+
+  const isHITL = source === 'HITL';
+  const conf = isHITL ? 62 : 94;
+  const pillClass = conf >= 85 ? 'high' : 'med';
+  const pillLabel = isHITL ? `${conf}% — HITL` : `${conf}%`;
+
+  const tbody = document.getElementById('db-tbody');
+  const tr = document.createElement('tr');
+  tr.className = 'db-new-row';
+  tr.innerHTML = `
+    <td style="color:var(--text-muted);">${String(dbRowCount).padStart(3,'0')}</td>
+    <td class="td-mono">INV-2024-00847</td>
+    <td>TechCorp Solutions Ltd.</td>
+    <td>Acme Corporation</td>
+    <td>${dateStr}</td>
+    <td class="td-amount">$12,450.00</td>
+    <td><span class="conf-pill ${pillClass}">${pillLabel}</span></td>
+    <td style="color:var(--text-muted); font-size:12px;">${source}</td>
+    <td style="color:var(--text-muted); font-size:12px;">${dateStr} ${timeStr}</td>
+  `;
+  tbody.prepend(tr);
+  tr.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+  setTimeout(() => tr.classList.remove('db-new-row'), 2000);
+}
+
+// ── HITL APPROVE ──
+function approveHITL() {
+  document.getElementById('hitl-panel').style.display = 'none';
+  setNodeState('node-storage','done');
+  setPipelineStatus('success', 'Complete — HITL-corrected invoice saved to database.');
+  document.getElementById('result-badge').innerHTML = `<span class="status-badge badge-success">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+    HITL Approved
+  </span>`;
+  document.getElementById('arr-hitl2').classList.add('lit');
+  addDbRow('HITL');
+  showToast('HITL correction approved and saved!', 'success');
+}
+
+function approveHigh() {
+  document.getElementById('approve-btn').style.display = 'none';
+  addDbRow('Auto');
+  showToast('Invoice saved to database!', 'success');
+}
+
+// ── TOAST ──
+function showToast(msg, type) {
+  const toast = document.getElementById('toast');
+  document.getElementById('toast-msg').textContent = msg;
+  toast.className = 'toast show ' + (type || 'success');
+  document.getElementById('toast-icon').innerHTML = type === 'warning'
+    ? '<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>'
+    : '<polyline points="20 6 9 17 4 12"/>';
+  setTimeout(() => toast.classList.remove('show'), 4000);
+}
+
+// ── FILE UPLOAD ──
+function handleDragOver(e) {
+  e.preventDefault();
+  document.getElementById('upload-zone').classList.add('drag-over');
+}
+
+function handleDragLeave(e) {
+  document.getElementById('upload-zone').classList.remove('drag-over');
+}
+
+function handleDrop(e) {
+  e.preventDefault();
+  document.getElementById('upload-zone').classList.remove('drag-over');
+  const files = e.dataTransfer.files;
+  if (files.length) handleFile(files[0]);
+}
+
+function handleFileSelect(e) {
+  if (e.target.files.length) handleFile(e.target.files[0]);
+}
+
+function handleFile(file) {
+  document.getElementById('file-name').textContent = file.name;
+  document.getElementById('file-size').textContent = formatBytes(file.size);
+  document.getElementById('file-preview').style.display = 'block';
+
+  if (file.type.startsWith('image/')) {
+    const reader = new FileReader();
+    reader.onload = e => document.getElementById('preview-img').src = e.target.result;
+    reader.readAsDataURL(file);
+  } else {
+    document.getElementById('preview-img').src = '';
+    document.getElementById('preview-img').alt = 'PDF — ' + file.name;
+  }
+}
+
+function formatBytes(b) {
+  if (b < 1024) return b + ' B';
+  if (b < 1024*1024) return (b/1024).toFixed(1) + ' KB';
+  return (b/1024/1024).toFixed(1) + ' MB';
+}
+
+function loadDemoFile() {
+  // Synthesize an SVG invoice as demo "image"
+  const svgInvoice = `<svg xmlns="http://www.w3.org/2000/svg" width="420" height="280" viewBox="0 0 420 280">
+    <rect width="420" height="280" fill="#ffffff"/>
+    <rect width="420" height="60" fill="#7c3aed"/>
+    <text x="20" y="22" font-family="sans-serif" font-size="11" fill="white" font-weight="bold">INVOICE</text>
+    <text x="20" y="38" font-family="sans-serif" font-size="8" fill="rgba(255,255,255,0.8)">TechCorp Solutions Ltd.</text>
+    <text x="20" y="50" font-family="sans-serif" font-size="7" fill="rgba(255,255,255,0.6)">+1-555-0192 · techcorp.com</text>
+    <text x="300" y="22" font-family="sans-serif" font-size="8" fill="rgba(255,255,255,0.9)">INV-2024-00847</text>
+    <text x="300" y="34" font-family="sans-serif" font-size="7" fill="rgba(255,255,255,0.7)">Date: 2024-03-15</text>
+    <rect x="10" y="70" width="400" height="1" fill="#e5e7eb"/>
+    <text x="20" y="90" font-family="sans-serif" font-size="8" fill="#374151" font-weight="bold">BILL TO:</text>
+    <text x="20" y="104" font-family="sans-serif" font-size="8" fill="#6b7280">Acme Corporation</text>
+    <text x="20" y="116" font-family="sans-serif" font-size="7" fill="#9ca3af">123 Business Ave, NY 10001</text>
+    <rect x="10" y="130" width="400" height="22" fill="#f3f4f6"/>
+    <text x="20" y="145" font-family="sans-serif" font-size="7.5" fill="#374151" font-weight="bold">DESCRIPTION</text>
+    <text x="250" y="145" font-family="sans-serif" font-size="7.5" fill="#374151" font-weight="bold">QTY</text>
+    <text x="300" y="145" font-family="sans-serif" font-size="7.5" fill="#374151" font-weight="bold">UNIT</text>
+    <text x="360" y="145" font-family="sans-serif" font-size="7.5" fill="#374151" font-weight="bold">TOTAL</text>
+    <text x="20" y="168" font-family="sans-serif" font-size="7.5" fill="#6b7280">Software License — Enterprise</text>
+    <text x="255" y="168" font-family="sans-serif" font-size="7.5" fill="#6b7280">5</text>
+    <text x="295" y="168" font-family="sans-serif" font-size="7.5" fill="#6b7280">\$2,000</text>
+    <text x="355" y="168" font-family="sans-serif" font-size="7.5" fill="#6b7280">\$10,000</text>
+    <text x="20" y="184" font-family="sans-serif" font-size="7.5" fill="#6b7280">Support &amp; Maintenance</text>
+    <text x="255" y="184" font-family="sans-serif" font-size="7.5" fill="#6b7280">1</text>
+    <text x="295" y="184" font-family="sans-serif" font-size="7.5" fill="#6b7280">\$2,450</text>
+    <text x="355" y="184" font-family="sans-serif" font-size="7.5" fill="#6b7280">\$2,450</text>
+    <rect x="10" y="200" width="400" height="1" fill="#e5e7eb"/>
+    <text x="300" y="220" font-family="sans-serif" font-size="8" fill="#374151">Subtotal: \$12,450.00</text>
+    <text x="300" y="234" font-family="sans-serif" font-size="8" fill="#374151">Tax (0%): \$0.00</text>
+    <rect x="290" y="240" width="120" height="22" fill="#7c3aed" rx="3"/>
+    <text x="305" y="254" font-family="sans-serif" font-size="9" fill="white" font-weight="bold">TOTAL: \$12,450.00</text>
+    <text x="20" y="265" font-family="sans-serif" font-size="7" fill="#9ca3af">Payment due within 30 days. Thank you for your business.</text>
+  </svg>`;
+
+  const blob = new Blob([svgInvoice], { type: 'image/svg+xml' });
+  const url = URL.createObjectURL(blob);
+  document.getElementById('preview-img').src = url;
+  document.getElementById('preview-img').alt = 'Demo Invoice';
+  document.getElementById('file-name').textContent = 'demo-invoice-INV-2024-00847.svg';
+  document.getElementById('file-size').textContent = '4.1 KB';
+  document.getElementById('file-preview').style.display = 'block';
+}
+</script>
+</body>
+</html>
+
